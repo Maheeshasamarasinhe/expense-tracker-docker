@@ -1,0 +1,272 @@
+/* ---------- Modern, accessible, responsive styling for Home ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --page-bg: #f6f8fb;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e5e7eb;
+  --accent-3: #6366f1;
+  --accent-4: #8b5cf6;
+  --ring: #a5b4fc;
+  --danger: #ef4444;
+  --shadow: 0 10px 30px -12px rgba(2, 6, 23, 0.25);
+}
+
+/* Dark mode (auto) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-bg: #0b1220;
+    --surface: #0f172a;
+    --surface-2: #111827;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --border: #1f2937;
+    --accent: #8b5cf6;
+    --accent-4: #6366f1;
+    --ring: #4f46e5;
+    --danger: #f87171;
+    --shadow: 0 12px 36px -14px rgba(0,0,0,0.6);
+  }
+}
+
+/* Base + background flourishes */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  color: var(--text);
+  background: radial-gradient(1200px 600px at 10% -10%, #eef2ff 0%, transparent 60%),
+              radial-gradient(1000px 500px at 90% -20%, #e0f2fe 0%, transparent 55%),
+              var(--page-bg);
+}
+
+/* Container */
+.home-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+  display: grid;
+  gap: 22px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  background: linear-gradient(90deg, var(--accent-3), var(--accent-4));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Buttons */
+.btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s ease;
+  box-shadow: 0 8px 20px -10px rgba(2, 6, 23, .25);
+}
+
+.header .btn {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+.header .btn:hover {
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+.header .btn:active { transform: translateY(0); }
+
+/* Accent button (Add) */
+.expense-form .btn {
+  background: linear-gradient(135deg, var(--accent-3), var(--accent-4));
+  color: white;
+  border: none;
+}
+.expense-form .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.expense-form .btn:active { transform: translateY(0); }
+.expense-form .btn::before {
+  content: "+";
+  margin-right: 8px;
+  font-weight: 700;
+}
+
+/* Delete button */
+.delete-btn {
+  margin-left: 12px;
+  border: 1px solid color-mix(in oklab, var(--danger) 60%, var(--border));
+  background: color-mix(in oklab, var(--danger) 10%, transparent);
+  color: var(--danger);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.delete-btn:hover {
+  background: color-mix(in oklab, var(--danger) 16%, transparent);
+  transform: translateY(-1px);
+}
+.delete-btn:active { transform: translateY(0); }
+
+/* Cards */
+.expense-form,
+.expense-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* Form */
+.expense-form h2,
+.expense-list h2 {
+  margin: 0;
+  padding: 16px 20px !important; /* override inline if present */
+  border-bottom: 1px solid var(--border) !important;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+
+.form-row {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 2fr 1.1fr 1.2fr auto;
+  padding: 16px 20px 20px;
+}
+@media (max-width: 860px) {
+  .form-row { grid-template-columns: 1fr 1fr; }
+  .expense-form .btn { grid-column: 1 / -1; width: 100%; }
+}
+@media (max-width: 520px) {
+  .form-row { grid-template-columns: 1fr; }
+}
+
+.form-group {
+  display: grid;
+  gap: 8px;
+}
+.form-group label {
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+.form-group input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 12px;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.form-group input::placeholder { color: color-mix(in oklab, var(--muted) 70%, transparent); }
+.form-group input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ring) 35%, transparent);
+  background: var(--surface);
+}
+
+/* Expense list */
+.expense-list {
+  display: grid;
+}
+
+.expense-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  transition: background .2s ease, transform .15s ease, border-color .2s ease;
+}
+.expense-item:hover {
+  background: color-mix(in oklab, var(--surface-2) 60%, transparent);
+}
+
+.expense-info h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.expense-info p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.expense-amount {
+  display: inline-block;
+  min-width: 96px;
+  text-align: right;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: .2px;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Total (sticky footer inside the list card) */
+.total {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 14px 20px;
+  font-weight: 800;
+  font-size: 1.05rem;
+  display: flex;
+  justify-content: flex-end;
+  backdrop-filter: blur(6px);
+}
+
+/* Small helper: nicer empty state text (the inline style still works) */
+.expense-list > div[style*="text-align: center"] {
+  color: var(--muted) !important;
+}
+
+/* Focus-visible for keyboard users */
+.btn:focus-visible,
+.delete-btn:focus-visible,
+.form-group input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ring) 35%, transparent);
+  border-color: var(--accent);
+}
+
+/* Subtle hover lift on cards */
+.expense-form:hover,
+.expense-list:hover {
+  transform: translateY(-1px);
+  transition: transform .2s ease;
+}
