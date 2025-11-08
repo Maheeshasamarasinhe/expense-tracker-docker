@@ -2,13 +2,13 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_REGISTRY = 'your-registry'
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        IMAGE_TAG = "${BUILD_NUMBER}"  // Use Jenkins build number as Docker tag
     }
     
     stages {
         stage('Checkout') {
             steps {
+                // Checkout main branch of your repo
                 git branch: 'main', url: 'https://github.com/Maheeshasamarasinhe/expense-tracker-docker.git'
             }
         }
@@ -42,22 +42,39 @@ pipeline {
         
         stage('Test') {
             steps {
-                sh 'docker-compose up --build -d'
-                sh 'sleep 30'  // Wait for services to start
-                sh 'curl -f http://localhost:4000/api/debug/users || exit 1'
+                script {
+                    // Start services in detached mode
+                    sh 'docker-compose up --build -d'
+                    
+                    // Wait for services to start
+                    sh 'sleep 30'
+                    
+                    // Run a simple health check (adjust URL to your API)
+                    sh 'curl -f http://localhost:4000/api/debug/users || exit 1'
+                }
             }
         }
         
         stage('Deploy') {
             steps {
-                sh 'docker-compose up --build -d'
+                script {
+                    // Deploy services (rebuild if necessary)
+                    sh 'docker-compose up --build -d'
+                }
             }
         }
     }
     
     post {
         always {
+            // Stop and remove containers to clean up
             sh 'docker-compose down'
+        }
+        success {
+            echo "Build, test, and deploy completed successfully!"
+        }
+        failure {
+            echo "Build or test failed. Check the logs above."
         }
     }
 }
