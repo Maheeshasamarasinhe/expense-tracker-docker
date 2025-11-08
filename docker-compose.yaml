@@ -1,0 +1,44 @@
+services:
+  mongodb:
+    image: docker.io/library/mongo:latest
+    container_name: mongodb_c
+    ports:
+      - '27017:27017'
+    volumes:
+    
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: expense_tracker
+
+  backend:
+    build: ./backend
+    container_name: backend_c
+    ports:
+      - '4000:4000'
+    depends_on:
+      - mongodb
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/expense_tracker
+      - JWT_SECRET=expense_tracker_jwt_secret_2024
+      - PORT=4000
+    stdin_open: true
+    tty: true
+
+  frontend:
+    build: ./frontend
+    container_name: frontend_c
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+
+volumes:
+  mongodb_data:
