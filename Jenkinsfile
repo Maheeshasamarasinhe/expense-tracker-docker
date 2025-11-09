@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_USER = 'maheeshasamarasinhe'
+        DOCKER_HUB_USER = 'maheeshamihiran' // replace with your Docker Hub username
         IMAGE_TAG = "${BUILD_NUMBER}" // automatically increments each build
     }
 
