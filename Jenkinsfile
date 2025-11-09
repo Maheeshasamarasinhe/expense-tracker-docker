@@ -15,7 +15,7 @@ pipeline {
         stage('Build and Push Images') {
             steps {
                 script {
-                    withCredentials([string(credentialsId: 'test-dockerhubpassword', variable: 'test-doc-pass')]) {
+                    withCredentials([string(credentialsId: 'test-doc-hub-password', variable: 'test-doc-pass')]) {
                         // Login to Docker Hub
                         sh 'echo "$test-doc-pass" | docker login -u "maheeshamihiran" --password-stdin'
 
