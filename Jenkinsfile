@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_USERNAME = 'maheeshamihiran'   // ✅ Your Docker Hub username
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
@@ -15,26 +14,21 @@ pipeline {
 
         stage('Build and Push Images') {
             steps {
-                withCredentials([string(credentialsId: 'test-dockerhubpassword', variable: 'test-dockerhubpass')]) {
-                    script {
-                        // 🔐 Login to Docker Hub securely
-                        sh 'echo "$test-dockerhubpass" | docker login -u "$DOCKER_USERNAME" --password-stdin'
+                script {
+                    withCredentials([string(credentialsId: 'test-dockerhubpassword', variable: 'test-doc-pass')]) {
+                        // Login to Docker Hub
+                        sh 'echo "$test-doc-pass" | docker login -u "maheeshamihiran" --password-stdin'
 
-                        // 🛠️ Build Docker images
-                        sh 'docker build -t $DOCKER_USERNAME/expense-backend:$IMAGE_TAG ./backend'
-                        sh 'docker build -t $DOCKER_USERNAME/expense-frontend:$IMAGE_TAG ./frontend'
-
-                        // 🗃️ Pull latest Mongo image and tag it
+                        // Build images
+                        sh 'docker build -t maheeshamihiran/expense-backend:${IMAGE_TAG} ./backend'
+                        sh 'docker build -t maheeshamihiran/expense-frontend:${IMAGE_TAG} ./frontend'
                         sh 'docker pull mongo:latest'
-                        sh 'docker tag mongo:latest $DOCKER_USERNAME/expense-mongodb:$IMAGE_TAG'
+                        sh 'docker tag mongo:latest maheeshamihiran/expense-mongodb:${IMAGE_TAG}'
 
-                        // 🚀 Push all images to Docker Hub
-                        sh 'docker push $DOCKER_USERNAME/expense-backend:$IMAGE_TAG'
-                        sh 'docker push $DOCKER_USERNAME/expense-frontend:$IMAGE_TAG'
-                        sh 'docker push $DOCKER_USERNAME/expense-mongodb:$IMAGE_TAG'
-
-                        // 🧹 Logout after push
-                        sh 'docker logout'
+                        // Push images to Docker Hub
+                        sh 'docker push maheeshamihiran/expense-backend:${IMAGE_TAG}'
+                        sh 'docker push maheeshamihiran/expense-frontend:${IMAGE_TAG}'
+                        sh 'docker push maheeshamihiran/expense-mongodb:${IMAGE_TAG}'
                     }
                 }
             }
@@ -43,7 +37,6 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    echo '🧪 Starting containers for testing...'
                     sh 'docker-compose up --build -d || true'
                     sh 'sleep 30'
                     sh 'curl -f http://localhost:4000/api/debug/users || true'
@@ -54,7 +47,6 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    echo '🚀 Deploying application...'
                     sh 'docker-compose up --build -d || true'
                 }
             }
@@ -63,10 +55,7 @@ pipeline {
 
     post {
         always {
-            script {
-                echo '🧹 Cleaning up containers...'
-                sh 'docker-compose down || true'
-            }
+            sh 'docker-compose down || true'
         }
     }
 }
