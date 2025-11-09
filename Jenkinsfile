@@ -44,9 +44,9 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
-                    sh "docker push ${DOCKER_HUB_USER}/expense-backend:${IMAGE_TAG}"
-                    sh "docker push ${DOCKER_HUB_USER}/expense-frontend:${IMAGE_TAG}"
-                    sh "docker push ${DOCKER_HUB_USER}/expense-mongodb:${IMAGE_TAG}"
+                    sh "docker push ${DOCKER_HUB_USER}/expenses-backend:v1.0"
+                    sh "docker push ${DOCKER_HUB_USER}/expenses-frontend:v1.0"
+                    sh "docker push ${DOCKER_HUB_USER}/expenses-mongodb:v1.0"
                 }
             }
         }
