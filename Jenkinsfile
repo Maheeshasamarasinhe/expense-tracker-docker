@@ -104,12 +104,27 @@ pipeline {
         stage('Wait for EC2 to be Ready') {
             steps {
                 script {
-                    dir('infrastructure') {
-                        sh '''
-                            INSTANCE_IP=$(terraform output -raw instance_public_ip)
-                            chmod +x ../wait-for-ec2.sh
-                            ../wait-for-ec2.sh $INSTANCE_IP
-                        '''
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                        dir('infrastructure') {
+                            sh '''
+                                INSTANCE_IP=$(terraform output -raw instance_public_ip)
+                                chmod +x ../wait-for-ec2.sh
+                                
+                                # Wait for EC2 with proper SSH key
+                                export SSH_KEY_PATH=$SSH_KEY
+                                for i in $(seq 1 30); do
+                                    echo "Attempt $i/30: Testing SSH connection to $INSTANCE_IP..."
+                                    if ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=5 ubuntu@$INSTANCE_IP "echo 'SSH connection successful'" 2>/dev/null; then
+                                        echo "✅ EC2 instance is ready and accessible!"
+                                        exit 0
+                                    fi
+                                    echo "⏳ Not ready yet, waiting 10s before retry..."
+                                    sleep 10
+                                done
+                                echo "❌ EC2 instance did not become accessible after 30 attempts"
+                                exit 1
+                            '''
+                        }
                     }
                 }
             }
