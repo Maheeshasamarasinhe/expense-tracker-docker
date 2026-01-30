@@ -140,6 +140,11 @@ resource "aws_instance" "app_server" {
     Project     = var.project_name
   }
 
+  depends_on = [
+    aws_internet_gateway.main,
+    aws_route_table_association.public
+  ]
+
   lifecycle {
     ignore_changes = [user_data]
   }
@@ -149,6 +154,8 @@ resource "aws_instance" "app_server" {
 resource "aws_eip" "app_server" {
   instance = aws_instance.app_server.id
   domain   = "vpc"
+
+  depends_on = [aws_internet_gateway.main]
 
   tags = {
     Name = "expense-tracker-eip"
