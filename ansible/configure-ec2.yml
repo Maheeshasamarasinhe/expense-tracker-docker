@@ -44,6 +44,7 @@
           - docker-ce
           - docker-ce-cli
           - containerd.io
+          - docker-compose-plugin
         state: present
         update_cache: yes
 
@@ -59,12 +60,6 @@
         groups: docker
         append: yes
 
-    - name: Install Docker Compose
-      get_url:
-        url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-linux-x86_64"
-        dest: /usr/local/bin/docker-compose
-        mode: '0755'
-
     - name: Create application directory
       file:
         path: /home/ubuntu/expense-tracker
@@ -73,19 +68,12 @@
         group: ubuntu
         mode: '0755'
 
-    - name: Install Docker Python SDK
-      pip:
-        name:
-          - docker
-          - docker-compose
-        state: present
-
     - name: Verify Docker installation
       command: docker --version
       register: docker_version
 
     - name: Verify Docker Compose installation
-      command: docker-compose --version
+      shell: docker compose version
       register: docker_compose_version_output
 
     - name: Display versions
