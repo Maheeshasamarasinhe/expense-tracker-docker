@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# Expense Tracker - Local Deployment Script
+# This script deploys the application locally for testing before Jenkins
+
+set -e
+
+echo "======================================"
+echo "Expense Tracker Deployment Script"
+echo "======================================"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check prerequisites
+echo -e "${YELLOW}Checking prerequisites...${NC}"
+
+if ! command -v terraform &> /dev/null; then
+    echo -e "${RED}Terraform not found. Please install Terraform.${NC}"
+    exit 1
+fi
+
+if ! command -v ansible &> /dev/null; then
+    echo -e "${RED}Ansible not found. Please install Ansible.${NC}"
+    exit 1
+fi
+
+if ! command -v aws &> /dev/null; then
+    echo -e "${RED}AWS CLI not found. Please install AWS CLI.${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ All prerequisites met${NC}"
+
+# Generate SSH key if not exists
+if [ ! -f ~/.ssh/expense-tracker-key.pem ]; then
+    echo -e "${YELLOW}Generating SSH key pair...${NC}"
+    ssh-keygen -t rsa -b 4096 -f ~/.ssh/expense-tracker-key -N ""
+    mv ~/.ssh/expense-tracker-key ~/.ssh/expense-tracker-key.pem
+    chmod 400 ~/.ssh/expense-tracker-key.pem
+    cp ~/.ssh/expense-tracker-key.pub ~/.ssh/id_rsa.pub
+    echo -e "${GREEN}✓ SSH key generated${NC}"
+fi
+
+# Step 1: Terraform
+echo -e "${YELLOW}Step 1: Provisioning AWS infrastructure with Terraform...${NC}"
+cd infrastructure
+
+terraform init
+terraform plan -out=tfplan
+terraform apply -auto-approve tfplan
+
+INSTANCE_IP=$(terraform output -raw instance_public_ip)
+echo -e "${GREEN}✓ Infrastructure provisioned${NC}"
+echo -e "${GREEN}Instance IP: $INSTANCE_IP${NC}"
+
+# Step 2: Generate Ansible inventory
+echo -e "${YELLOW}Step 2: Generating Ansible inventory...${NC}"
+cd ../ansible
+echo "[ec2_instances]" > inventory
+echo "$INSTANCE_IP" >> inventory
+echo -e "${GREEN}✓ Inventory generated${NC}"
+
+# Step 3: Wait for EC2
+echo -e "${YELLOW}Step 3: Waiting for EC2 instance to be ready (60 seconds)...${NC}"
+sleep 60
+echo -e "${GREEN}✓ EC2 should be ready${NC}"
+
+# Step 4: Configure EC2
+echo -e "${YELLOW}Step 4: Configuring EC2 with Docker and Docker Compose...${NC}"
+ansible-playbook -i inventory configure-ec2.yml
+echo -e "${GREEN}✓ EC2 configured${NC}"
+
+# Step 5: Deploy application
+echo -e "${YELLOW}Step 5: Deploying application...${NC}"
+ansible-playbook -i inventory deploy.yml
+echo -e "${GREEN}✓ Application deployed${NC}"
+
+# Final output
+echo ""
+echo "======================================"
+echo -e "${GREEN}Deployment Successful!${NC}"
+echo "======================================"
+echo ""
+echo "Frontend URL: http://$INSTANCE_IP:3000"
+echo "Backend URL: http://$INSTANCE_IP:4000"
+echo "SSH Access: ssh -i ~/.ssh/expense-tracker-key.pem ubuntu@$INSTANCE_IP"
+echo ""
+echo "======================================"

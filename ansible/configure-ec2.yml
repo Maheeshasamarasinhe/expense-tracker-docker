@@ -1,0 +1,95 @@
+---
+- name: Configure EC2 for Docker and Docker Compose
+  hosts: ec2_instances
+  become: yes
+  vars:
+    docker_compose_version: "2.24.5"
+    
+  tasks:
+    - name: Wait for system to become reachable
+      wait_for_connection:
+        timeout: 300
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - software-properties-common
+          - python3-pip
+          - git
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Install Docker Compose
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-linux-x86_64"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Create application directory
+      file:
+        path: /home/ubuntu/expense-tracker
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Install Docker Python SDK
+      pip:
+        name:
+          - docker
+          - docker-compose
+        state: present
+
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+
+    - name: Verify Docker Compose installation
+      command: docker-compose --version
+      register: docker_compose_version_output
+
+    - name: Display versions
+      debug:
+        msg:
+          - "{{ docker_version.stdout }}"
+          - "{{ docker_compose_version_output.stdout }}"

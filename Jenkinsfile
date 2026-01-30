@@ -51,18 +51,107 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+       stage('Terraform - Provision Infrastructure') {
+        steps {
+        script {
+            // Mapping the IDs you just created to variables Terraform can read
+            withCredentials([string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                             string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')]) {
+                dir('infrastructure') {
+                    sh '''
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        terraform init
+                        terraform plan -out=tfplan
+                        terraform apply -auto-approve tfplan
+                    '''
+                   }
+                 }
+             }
+          }
+       }
+
+        stage('Generate Ansible Inventory') {
             steps {
                 script {
-                    sh 'docker-compose up --build -d || true'
+                    dir('infrastructure') {
+                        sh '''
+                            echo "[ec2_instances]" > ../ansible/inventory
+                            terraform output -raw instance_public_ip >> ../ansible/inventory
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Wait for EC2 to be Ready') {
+            steps {
+                script {
+                    sh 'sleep 60'
+                }
+            }
+        }
+
+  stage('Configure EC2 with Ansible') {
+    steps {
+        script {
+            // This 'sshUserPrivateKey' matches the ID 'ssh-key' you just created
+            withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                dir('ansible') {
+                    sh "ansible-playbook -i inventory --private-key ${SSH_KEY} -u ubuntu configure-ec2.yml"
+                }
+            }
+        }
+    }
+}
+       
+   stage('Deploy Application with Ansible') {
+       steps {
+        script {
+            withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                dir('ansible') {
+                    sh "ansible-playbook -i inventory --private-key ${SSH_KEY} -u ubuntu deploy.yml"
+                }
+            }
+        }
+    }
+
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    dir('infrastructure') {
+                        sh '''
+                            INSTANCE_IP=$(terraform output -raw instance_public_ip)
+                            echo "Frontend URL: http://$INSTANCE_IP:3000"
+                            echo "Backend URL: http://$INSTANCE_IP:4000"
+                            echo "Waiting for services to be ready..."
+                            sleep 30
+                            curl -f http://$INSTANCE_IP:3000 || echo "Frontend not ready yet"
+                            curl -f http://$INSTANCE_IP:4000/health || echo "Backend not ready yet"
+                        '''
+                    }
                 }
             }
         }
     }
 
     post {
-        always {
-            sh 'docker-compose down || true'
+        success {
+            script {
+                dir('infrastructure') {
+                    sh '''
+                        INSTANCE_IP=$(terraform output -raw instance_public_ip)
+                        echo "========================================"
+                        echo "Deployment Successful!"
+                        echo "Frontend: http://$INSTANCE_IP:3000"
+                        echo "Backend: http://$INSTANCE_IP:4000"
+                        echo "========================================"
+                    '''
+                }
+            }
+        }
+        failure {
+            echo 'Deployment failed. Check logs above.'
         }
     }
 }

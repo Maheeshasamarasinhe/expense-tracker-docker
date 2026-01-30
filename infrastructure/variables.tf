@@ -15,13 +15,19 @@ variable "ami_id" {
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t2.medium" # 2 vCPU, 4 GB RAM - suitable for Docker containers
+  default     = "t2.micro"
 }
 
-variable "key_pair_name" {
+variable "key_name" {
   description = "Name of the SSH key pair for EC2 access"
   type        = string
-  default     = "task-tracker-key"
+  default     = "expense-tracker-key"
+}
+
+variable "public_key_path" {
+  description = "Path to the public key file for SSH access"
+  type        = string
+  default     = "~/.ssh/expense-tracker-key.pub"  # Changed from id_rsa.pub
 }
 
 variable "environment" {
@@ -33,5 +39,5 @@ variable "environment" {
 variable "project_name" {
   description = "Project name for resource tagging"
   type        = string
-  default     = "task-tracker"
+  default     = "expense-tracker"
 }
