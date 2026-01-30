@@ -43,10 +43,14 @@ pipeline {
         stage('Push Images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
-                    sh "docker push ${DOCKER_HUB_USER}/expense-backend:${IMAGE_TAG}"
-                    sh "docker push ${DOCKER_HUB_USER}/expense-frontend:${IMAGE_TAG}"
-                    sh "docker push ${DOCKER_HUB_USER}/expense-mongodb:${IMAGE_TAG}"
+                    retry(3) {
+                        sh '''
+                            echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+                            docker push ${DOCKER_HUB_USER}/expense-backend:${IMAGE_TAG}
+                            docker push ${DOCKER_HUB_USER}/expense-frontend:${IMAGE_TAG}
+                            docker push ${DOCKER_HUB_USER}/expense-mongodb:${IMAGE_TAG}
+                        '''
+                    }
                 }
             }
         }
