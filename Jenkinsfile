@@ -89,17 +89,48 @@ pipeline {
         stage('Wait for EC2 to be Ready') {
             steps {
                 script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY'),
+                                     string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                                     string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')]) {
                         dir('infrastructure') {
                             sh '''
-                                INSTANCE_IP=$(terraform output -raw instance_public_ip)
-                                chmod +x ../wait-for-ec2.sh
+                                export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                export AWS_DEFAULT_REGION=us-east-1
                                 
-                                # Wait for EC2 with proper SSH key
-                                export SSH_KEY_PATH=$SSH_KEY
+                                INSTANCE_IP=$(terraform output -raw instance_public_ip)
+                                INSTANCE_ID=$(terraform output -raw instance_id)
+                                
+                                echo "=========================================="
+                                echo "EC2 Instance Details:"
+                                echo "  Instance ID: $INSTANCE_ID"
+                                echo "  Public IP: $INSTANCE_IP"
+                                echo "=========================================="
+                                
+                                # Check instance state in AWS
+                                echo "Checking EC2 instance state..."
+                                aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].[State.Name,PublicIpAddress,VpcId,SubnetId]' --output table || echo "Could not query AWS"
+                                
+                                # Check security group rules
+                                echo "Checking security group rules..."
+                                SG_ID=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].SecurityGroups[0].GroupId' --output text)
+                                echo "Security Group ID: $SG_ID"
+                                aws ec2 describe-security-groups --group-ids $SG_ID --query 'SecurityGroups[0].IpPermissions[?FromPort==`22`]' --output table || echo "Could not query security group"
+                                
+                                # Test network connectivity first
+                                echo "Testing network connectivity to port 22..."
+                                timeout 5 bash -c "echo > /dev/tcp/$INSTANCE_IP/22" 2>/dev/null && echo "✅ Port 22 is reachable" || echo "❌ Port 22 is NOT reachable"
+                                
+                                # Check SSH key
+                                echo "SSH Key file info:"
+                                ls -la $SSH_KEY
+                                ssh-keygen -l -f $SSH_KEY || echo "Could not read key fingerprint"
+                                
+                                # Wait for EC2 with verbose SSH output
                                 for i in $(seq 1 30); do
+                                    echo "----------------------------------------"
                                     echo "Attempt $i/30: Testing SSH connection to $INSTANCE_IP..."
-                                    if ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=5 ubuntu@$INSTANCE_IP "echo 'SSH connection successful'" 2>/dev/null; then
+                                    if ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes -v ubuntu@$INSTANCE_IP "echo 'SSH connection successful'" 2>&1 | tail -20; then
                                         echo "✅ EC2 instance is ready and accessible!"
                                         exit 0
                                     fi
