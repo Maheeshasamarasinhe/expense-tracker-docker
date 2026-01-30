@@ -121,16 +121,16 @@ pipeline {
                                 echo "Testing network connectivity to port 22..."
                                 timeout 5 bash -c "echo > /dev/tcp/$INSTANCE_IP/22" 2>/dev/null && echo "✅ Port 22 is reachable" || echo "❌ Port 22 is NOT reachable"
                                 
-                                # Check SSH key
+                                # Check SSH key (quote path to handle spaces)
                                 echo "SSH Key file info:"
-                                ls -la $SSH_KEY
-                                ssh-keygen -l -f $SSH_KEY || echo "Could not read key fingerprint"
+                                ls -la "$SSH_KEY"
+                                ssh-keygen -l -f "$SSH_KEY" || echo "Could not read key fingerprint"
                                 
                                 # Wait for EC2 with verbose SSH output
                                 for i in $(seq 1 30); do
                                     echo "----------------------------------------"
                                     echo "Attempt $i/30: Testing SSH connection to $INSTANCE_IP..."
-                                    if ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes -v ubuntu@$INSTANCE_IP "echo 'SSH connection successful'" 2>&1 | tail -20; then
+                                    if ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes -v ubuntu@$INSTANCE_IP "echo 'SSH connection successful'" 2>&1 | tail -20; then
                                         echo "✅ EC2 instance is ready and accessible!"
                                         exit 0
                                     fi
@@ -151,7 +151,7 @@ pipeline {
                 script {
                     withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
                         dir('ansible') {
-                            sh "ansible-playbook -i inventory --private-key ${SSH_KEY} -u ubuntu configure-ec2.yml"
+                            sh 'ansible-playbook -i inventory --private-key "$SSH_KEY" -u ubuntu configure-ec2.yml'
                         }
                     }
                 }
@@ -163,7 +163,7 @@ pipeline {
                 script {
                     withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
                         dir('ansible') {
-                            sh "ansible-playbook -i inventory --private-key ${SSH_KEY} -u ubuntu deploy.yml"
+                            sh 'ansible-playbook -i inventory --private-key "$SSH_KEY" -u ubuntu deploy.yml'
                         }
                     }
                 }
