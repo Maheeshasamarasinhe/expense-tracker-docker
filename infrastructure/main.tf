@@ -198,7 +198,7 @@ resource "null_resource" "generate_inventory" {
   }
 
   triggers = {
-    instance_id = aws_instance.app_server.id
+    instance_id = data.aws_instance.current.id
     public_ip   = aws_eip.app_server.public_ip
   }
 }
