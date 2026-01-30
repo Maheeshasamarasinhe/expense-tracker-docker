@@ -109,14 +109,10 @@ resource "aws_security_group" "ec2" {
   }
 }
 
-# Key Pair for SSH
-resource "aws_key_pair" "deployer" {
-  key_name   = var.key_name
-  public_key = file(var.public_key_path) # Simplified
-
-  tags = {
-    Name = "expense-tracker-key"
-  }
+# Get existing key pair (since we're using existing EC2 instance)
+data "aws_key_pair" "existing" {
+  key_name           = var.key_name
+  include_public_key = true
 }
 
 # Check for existing EC2 instance
@@ -143,7 +139,7 @@ resource "aws_instance" "app_server" {
   count                  = local.instance_exists ? 0 : 1
   ami                    = var.ami_id
   instance_type          = var.instance_type
-  key_name               = aws_key_pair.deployer.key_name
+  key_name               = data.aws_key_pair.existing.key_name
   vpc_security_group_ids = [aws_security_group.ec2.id]
   subnet_id              = aws_subnet.public.id
 
