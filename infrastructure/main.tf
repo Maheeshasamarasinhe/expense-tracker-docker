@@ -154,3 +154,20 @@ resource "aws_eip" "app_server" {
     Name = "expense-tracker-eip"
   }
 }
+
+# Auto-generate Ansible Inventory File
+resource "null_resource" "generate_inventory" {
+  depends_on = [aws_eip.app_server]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "[ec2_instances]" > ../ansible/inventory
+      echo "${aws_eip.app_server.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/expense-tracker-key ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> ../ansible/inventory
+    EOT
+  }
+
+  triggers = {
+    instance_id = aws_instance.app_server.id
+    public_ip   = aws_eip.app_server.public_ip
+  }
+}
