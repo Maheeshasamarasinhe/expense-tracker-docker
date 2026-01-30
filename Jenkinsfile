@@ -75,6 +75,14 @@ pipeline {
                                 echo "Terraform outputs:"
                                 terraform output
                                 echo "=========================================="
+                                
+                                # Generate Ansible inventory from Terraform output
+                                echo "Generating Ansible inventory..."
+                                INSTANCE_IP=$(terraform output -raw instance_public_ip)
+                                echo "[ec2_instances]" > ../ansible/inventory
+                                echo "${INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=./ssh_key.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> ../ansible/inventory
+                                echo "Inventory generated:"
+                                cat ../ansible/inventory
                             '''
                         }
                     }
