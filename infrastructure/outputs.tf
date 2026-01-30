@@ -2,7 +2,7 @@
 
 output "instance_id" {
   description = "EC2 Instance ID"
-  value       = data.aws_instance.current.id
+  value       = aws_instance.app_server.id
 }
 
 output "instance_public_ip" {
@@ -12,7 +12,7 @@ output "instance_public_ip" {
 
 output "instance_public_dns" {
   description = "Public DNS of the EC2 instance"
-  value       = data.aws_instance.current.public_dns
+  value       = aws_instance.app_server.public_dns
 }
 
 output "ssh_command" {

@@ -115,28 +115,8 @@ data "aws_key_pair" "existing" {
   include_public_key = true
 }
 
-# Check for existing EC2 instance
-data "aws_instances" "existing" {
-  filter {
-    name   = "tag:Name"
-    values = ["expense-tracker-server"]
-  }
-
-  filter {
-    name   = "instance-state-name"
-    values = ["running", "pending", "stopping", "stopped"]
-  }
-}
-
-# Locals to determine if we should create new instance
-locals {
-  instance_exists = length(data.aws_instances.existing.ids) > 0
-  existing_instance_id = local.instance_exists ? data.aws_instances.existing.ids[0] : null
-}
-
-# EC2 Instance (only create if doesn't exist)
+# EC2 Instance - Always create new instance with new VPC
 resource "aws_instance" "app_server" {
-  count                  = local.instance_exists ? 0 : 1
   ami                    = var.ami_id
   instance_type          = var.instance_type
   key_name               = data.aws_key_pair.existing.key_name
@@ -165,16 +145,9 @@ resource "aws_instance" "app_server" {
   }
 }
 
-# Get existing or newly created instance
-data "aws_instance" "current" {
-  depends_on = [aws_instance.app_server]
-  
-  instance_id = local.instance_exists ? local.existing_instance_id : aws_instance.app_server[0].id
-}
-
 # Elastic IP
 resource "aws_eip" "app_server" {
-  instance = data.aws_instance.current.id
+  instance = aws_instance.app_server.id
   domain   = "vpc"
 
   tags = {
@@ -194,7 +167,7 @@ resource "null_resource" "generate_inventory" {
   }
 
   triggers = {
-    instance_id = data.aws_instance.current.id
+    instance_id = aws_instance.app_server.id
     public_ip   = aws_eip.app_server.public_ip
   }
 }
