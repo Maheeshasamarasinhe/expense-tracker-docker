@@ -207,8 +207,8 @@ resource "null_resource" "generate_inventory" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      echo "[ec2_instances]" > ../ansible/inventory
-      echo "${aws_eip.app_server.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=../ansible/ssh_key.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> ../ansible/inventory
+      echo "[ec2_instances]" > ${path.module}/../ansible/inventory
+      echo "${aws_eip.app_server.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=./ssh_key.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> ${path.module}/../ansible/inventory
     EOT
   }
 

@@ -4,7 +4,6 @@
   become: yes
   vars:
     app_dir: /home/ubuntu/expense-tracker
-    # These match the tags you set in your Jenkinsfile
     docker_hub_user: "maheeshamihiran"
     
   tasks:
@@ -17,23 +16,12 @@
         mode: '0755'
 
     - name: Copy production docker-compose to EC2
-      # This copies your hub-specific compose file and renames it to docker-compose.yaml on the server
       copy:
         src: ../docker-compose.hub.yml 
         dest: "{{ app_dir }}/docker-compose.yaml"
         owner: ubuntu
         group: ubuntu
         mode: '0644'
-
-    - name: Copy environment file
-      # Jenkins generates/contains the .env; we move it to the app folder
-      copy:
-        src: ../.env
-        dest: "{{ app_dir }}/.env"
-        owner: ubuntu
-        group: ubuntu
-        mode: '0644'
-      ignore_errors: yes
 
     - name: Stop existing containers
       command: docker-compose down
@@ -56,12 +44,11 @@
     - name: Wait for services to become healthy
       wait_for:
         port: "{{ item }}"
-        delay: 5
-        timeout: 60
+        delay: 10
+        timeout: 120
       loop:
         - 3000  # Frontend
         - 4000  # Backend
-        - 27017 # MongoDB
 
     - name: Verify running containers
       command: docker ps
@@ -72,6 +59,6 @@
       debug:
         msg: "{{ docker_ps.stdout_lines }}"
 
-    - name: Clean up unused Docker images (Prune)
+    - name: Clean up unused Docker images
       command: docker image prune -f
       become_user: ubuntu

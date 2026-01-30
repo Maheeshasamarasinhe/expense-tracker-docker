@@ -24,12 +24,6 @@ variable "key_name" {
   default     = "expense-tracker-key"
 }
 
-variable "public_key_path" {
-  description = "Path to the public key file for SSH access"
-  type        = string
-  default     = "~/.ssh/expense-tracker-key.pub"  # Changed from id_rsa.pub
-}
-
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string

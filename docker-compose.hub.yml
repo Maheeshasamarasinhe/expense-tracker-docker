@@ -10,7 +10,7 @@ services:
       MONGO_INITDB_DATABASE: expense_tracker
 
   backend:
-    image: maheeshasamarasinhe/expense-backend:latest
+    image: maheeshamihiran/expense-backend:latest
     container_name: backend_c
     ports:
       - '4000:4000'
@@ -22,7 +22,7 @@ services:
       - PORT=4000
 
   frontend:
-    image: maheeshasamarasinhe/expense-frontend:latest
+    image: maheeshamihiran/expense-frontend:latest
     container_name: frontend_c
     ports:
       - '3000:3000'

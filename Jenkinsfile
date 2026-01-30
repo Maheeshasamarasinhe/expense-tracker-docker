@@ -158,6 +158,13 @@ pipeline {
         stage('Deploy Application with Ansible') {
             steps {
                 script {
+                    // Update docker-compose.hub.yml with the correct image tags
+                    sh """
+                        sed -i 's|maheeshamihiran/expense-backend:latest|maheeshamihiran/expense-backend:${IMAGE_TAG}|g' docker-compose.hub.yml
+                        sed -i 's|maheeshamihiran/expense-frontend:latest|maheeshamihiran/expense-frontend:${IMAGE_TAG}|g' docker-compose.hub.yml
+                        echo "Updated docker-compose.hub.yml with tag ${IMAGE_TAG}:"
+                        cat docker-compose.hub.yml
+                    """
                     dir('ansible') {
                         sh '''
                             echo "Running Ansible deployment playbook..."
