@@ -15,9 +15,14 @@ output "instance_public_dns" {
   value       = aws_instance.app_server.public_dns
 }
 
+output "ssh_key_path" {
+  description = "Path to the generated SSH private key"
+  value       = "${path.module}/../ansible/ssh_key.pem"
+}
+
 output "ssh_command" {
   description = "SSH command to connect to the instance"
-  value       = "ssh -i ~/.ssh/expense-tracker-key ubuntu@${aws_eip.app_server.public_ip}"
+  value       = "ssh -i ansible/ssh_key.pem ubuntu@${aws_eip.app_server.public_ip}"
 }
 
 output "frontend_url" {
@@ -32,5 +37,5 @@ output "backend_url" {
 
 output "ansible_inventory" {
   description = "Ansible inventory file content"
-  value       = "[ec2_instances]\n${aws_eip.app_server.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/expense-tracker-key"
+  value       = "[ec2_instances]\n${aws_eip.app_server.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=../ansible/ssh_key.pem"
 }

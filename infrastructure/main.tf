@@ -1,5 +1,49 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.0"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
+  }
+}
+
 provider "aws" {
   region = var.aws_region
+}
+
+# Generate SSH Key Pair
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# Create AWS Key Pair from generated key
+resource "aws_key_pair" "generated" {
+  key_name   = var.key_name
+  public_key = tls_private_key.ssh_key.public_key_openssh
+
+  tags = {
+    Name = var.key_name
+  }
+}
+
+# Save private key to local file for Ansible
+resource "local_file" "private_key" {
+  content         = tls_private_key.ssh_key.private_key_pem
+  filename        = "${path.module}/../ansible/ssh_key.pem"
+  file_permission = "0600"
 }
 
 # VPC
@@ -109,17 +153,11 @@ resource "aws_security_group" "ec2" {
   }
 }
 
-# Get existing key pair (since we're using existing EC2 instance)
-data "aws_key_pair" "existing" {
-  key_name           = var.key_name
-  include_public_key = true
-}
-
-# EC2 Instance - Always create new instance with new VPC
+# EC2 Instance - Create with generated key pair
 resource "aws_instance" "app_server" {
   ami                    = var.ami_id
   instance_type          = var.instance_type
-  key_name               = data.aws_key_pair.existing.key_name
+  key_name               = aws_key_pair.generated.key_name
   vpc_security_group_ids = [aws_security_group.ec2.id]
   subnet_id              = aws_subnet.public.id
 
@@ -142,7 +180,8 @@ resource "aws_instance" "app_server" {
 
   depends_on = [
     aws_internet_gateway.main,
-    aws_route_table_association.public
+    aws_route_table_association.public,
+    aws_key_pair.generated
   ]
 
   lifecycle {
@@ -162,14 +201,14 @@ resource "aws_eip" "app_server" {
   }
 }
 
-# Auto-generate Ansible Inventory File
+# Auto-generate Ansible Inventory File with key path
 resource "null_resource" "generate_inventory" {
-  depends_on = [aws_eip.app_server]
+  depends_on = [aws_eip.app_server, local_file.private_key]
 
   provisioner "local-exec" {
     command = <<-EOT
       echo "[ec2_instances]" > ../ansible/inventory
-      echo "${aws_eip.app_server.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/expense-tracker-key ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> ../ansible/inventory
+      echo "${aws_eip.app_server.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=../ansible/ssh_key.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> ../ansible/inventory
     EOT
   }
 

@@ -1,34 +1,17 @@
-# Dependencies
-node_modules/
-npm-debug.log*
-
-# Environment variables
-.env
-.env.local
-
-# Build outputs
-build/
-dist/
-
-# Docker
-.dockerignore
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
+# SSH Keys - Never commit private keys
+ansible/ssh_key.pem
+*.pem
 
 # Terraform
-**/.terraform/*
-**/.terraform.lock.hcl
-**/terraform.tfstate
-**/terraform.tfstate.backup
-**/*.tfvars
-**/.terraformrc
-**/terraform.rc
+infrastructure/.terraform/
+infrastructure/*.tfstate
+infrastructure/*.tfstate.*
+infrastructure/.terraform.lock.hcl
+infrastructure/tfplan
+
+# Node modules
+node_modules/
+
+# Environment files
+.env
+.env.local
