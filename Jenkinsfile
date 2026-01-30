@@ -51,25 +51,24 @@ pipeline {
             }
         }
 
-       stage('Terraform - Provision Infrastructure') {
-        steps {
-        script {
-            // Mapping the IDs you just created to variables Terraform can read
-            withCredentials([string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                             string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')]) {
-                dir('infrastructure') {
-                    sh '''
-                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                        terraform init
-                        terraform plan -out=tfplan
-                        terraform apply -auto-approve tfplan
-                    '''
-                   }
-                 }
-             }
-          }
-       }
+        stage('Terraform - Provision Infrastructure') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                                     string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')]) {
+                        dir('infrastructure') {
+                            sh '''
+                                export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                terraform init
+                                terraform plan -out=tfplan
+                                terraform apply -auto-approve tfplan
+                            '''
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Generate Ansible Inventory') {
             steps {
@@ -94,29 +93,29 @@ pipeline {
             }
         }
 
-  stage('Configure EC2 with Ansible') {
-    steps {
-        script {
-            // This 'sshUserPrivateKey' matches the ID 'ssh-key' you just created
-            withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                dir('ansible') {
-                    sh "ansible-playbook -i inventory --private-key ${SSH_KEY} -u ubuntu configure-ec2.yml"
+        stage('Configure EC2 with Ansible') {
+            steps {
+                script {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                        dir('ansible') {
+                            sh "ansible-playbook -i inventory --private-key ${SSH_KEY} -u ubuntu configure-ec2.yml"
+                        }
+                    }
                 }
             }
         }
-    }
-}
        
-   stage('Deploy Application with Ansible') {
-       steps {
-        script {
-            withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                dir('ansible') {
-                    sh "ansible-playbook -i inventory --private-key ${SSH_KEY} -u ubuntu deploy.yml"
+        stage('Deploy Application with Ansible') {
+            steps {
+                script {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                        dir('ansible') {
+                            sh "ansible-playbook -i inventory --private-key ${SSH_KEY} -u ubuntu deploy.yml"
+                        }
+                    }
                 }
             }
         }
-    }
 
         stage('Verify Deployment') {
             steps {
