@@ -60,6 +60,22 @@ pipeline {
                             sh '''
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                                 export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                
+                                # Check for existing instances
+                                echo "Checking for existing EC2 instances..."
+                                EXISTING=$(aws ec2 describe-instances \
+                                  --filters "Name=tag:Name,Values=expense-tracker-server" \
+                                            "Name=instance-state-name,Values=running,pending,stopped,stopping" \
+                                  --query 'Reservations[*].Instances[*].InstanceId' \
+                                  --output text)
+                                
+                                if [ -n "$EXISTING" ]; then
+                                    echo "⚠️  Existing EC2 instance found: $EXISTING"
+                                    echo "Terraform will use the existing instance."
+                                else
+                                    echo "✅ No existing instance. Creating new EC2."
+                                fi
+                                
                                 terraform init
                                 terraform plan -out=tfplan
                                 terraform apply -auto-approve tfplan

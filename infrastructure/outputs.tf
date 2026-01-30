@@ -2,17 +2,18 @@
 
 output "instance_id" {
   description = "EC2 Instance ID"
-  value       = aws_instance.app_server.id
+  value       = data.aws_instance.current.id
 }
 
 output "instance_public_ip" {
   description = "Public IP address of the EC2 instance"
   value       = aws_eip.app_server.public_ip
 }
+}
 
 output "instance_public_dns" {
   description = "Public DNS of the EC2 instance"
-  value       = aws_instance.app_server.public_dns
+  value       = data.aws_instance.current.public_dns
 }
 
 output "ssh_command" {

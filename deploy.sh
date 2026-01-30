@@ -35,6 +35,11 @@ fi
 
 echo -e "${GREEN}✓ All prerequisites met${NC}"
 
+# Check for existing EC2 instances
+echo -e "${YELLOW}Checking for existing EC2 instances...${NC}"
+chmod +x check-existing-ec2.sh
+./check-existing-ec2.sh || exit 1
+
 # Generate SSH key if not exists
 if [ ! -f ~/.ssh/expense-tracker-key.pem ]; then
     echo -e "${YELLOW}Generating SSH key pair...${NC}"
