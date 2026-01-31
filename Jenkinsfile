@@ -68,6 +68,41 @@ pipeline {
                                 
                                 echo "Initializing Terraform..."
                                 terraform init
+                                
+                                # Check if infrastructure exists and test SSH connectivity
+                                if terraform output instance_public_ip 2>/dev/null; then
+                                    EXISTING_IP=$(terraform output -raw instance_public_ip)
+                                    SSH_KEY="../ansible/ssh_key.pem"
+                                    
+                                    echo "Existing infrastructure found at $EXISTING_IP"
+                                    echo "Testing SSH connectivity with existing key..."
+                                    
+                                    if [ -f "$SSH_KEY" ]; then
+                                        if ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes ubuntu@$EXISTING_IP "echo 'SSH OK'" 2>/dev/null; then
+                                            echo "✅ SSH connection successful - reusing existing infrastructure"
+                                        else
+                                            echo "⚠️ SSH connection failed - key mismatch detected"
+                                            echo "Tainting resources to force recreation with new key pair..."
+                                            terraform taint tls_private_key.ssh_key || true
+                                            terraform taint local_file.private_key || true
+                                            terraform taint aws_key_pair.generated || true
+                                            terraform taint aws_instance.app_server || true
+                                            terraform taint aws_eip.app_server || true
+                                            terraform taint null_resource.generate_inventory || true
+                                        fi
+                                    else
+                                        echo "⚠️ SSH key file not found - tainting resources..."
+                                        terraform taint tls_private_key.ssh_key || true
+                                        terraform taint local_file.private_key || true
+                                        terraform taint aws_key_pair.generated || true
+                                        terraform taint aws_instance.app_server || true
+                                        terraform taint aws_eip.app_server || true
+                                        terraform taint null_resource.generate_inventory || true
+                                    fi
+                                else
+                                    echo "No existing infrastructure found - will create new"
+                                fi
+                                
                                 terraform plan -out=tfplan
                                 terraform apply -auto-approve tfplan
                                 
