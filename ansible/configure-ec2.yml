@@ -10,10 +10,37 @@
       wait_for_connection:
         timeout: 300
 
+    - name: Wait for cloud-init to finish
+      command: cloud-init status --wait
+      changed_when: false
+      
+    - name: Wait for apt lock to be released
+      shell: |
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+          echo "Waiting for apt lock..."
+          sleep 5
+        done
+      changed_when: false
+      
+    - name: Kill any running apt processes if still locked
+      shell: |
+        pkill -9 apt-get || true
+        pkill -9 dpkg || true
+        rm -f /var/lib/dpkg/lock-frontend
+        rm -f /var/lib/apt/lists/lock
+        rm -f /var/cache/apt/archives/lock
+        dpkg --configure -a
+      changed_when: false
+      ignore_errors: yes
+
     - name: Update apt cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
+      retries: 5
+      delay: 10
+      register: apt_update
+      until: apt_update is success
 
     - name: Install required packages
       apt:
@@ -27,6 +54,10 @@
           - python3-pip
           - git
         state: present
+      retries: 3
+      delay: 10
+      register: apt_install
+      until: apt_install is success
 
     - name: Add Docker GPG key
       apt_key:
