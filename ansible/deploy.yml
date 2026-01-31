@@ -33,13 +33,11 @@
       shell: docker compose pull
       args:
         chdir: "{{ app_dir }}"
-      become_user: ubuntu
 
     - name: Start containers with docker-compose
       shell: docker compose up -d
       args:
         chdir: "{{ app_dir }}"
-      become_user: ubuntu
 
     - name: Wait for services to become healthy
       wait_for:
@@ -53,7 +51,6 @@
     - name: Verify running containers
       command: docker ps
       register: docker_ps
-      become_user: ubuntu
 
     - name: Display running containers
       debug:
