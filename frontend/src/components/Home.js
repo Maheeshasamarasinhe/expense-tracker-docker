@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Home.css';
 import axios from 'axios';
+import API_URL from '../config';
 
 const Home = ({ setAuth }) => {
   const [expenses, setExpenses] = useState([]);
@@ -16,7 +17,7 @@ const Home = ({ setAuth }) => {
   const fetchExpenses = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:4000/api/expenses', {
+      const response = await axios.get(`${API_URL}/api/expenses`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setExpenses(response.data);
@@ -29,7 +30,7 @@ const Home = ({ setAuth }) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:4000/api/expenses', formData, {
+      await axios.post(`${API_URL}/api/expenses`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFormData({ title: '', amount: '', category: '' });
@@ -42,7 +43,7 @@ const Home = ({ setAuth }) => {
   const deleteExpense = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:4000/api/expenses/${id}`, {
+      await axios.delete(`${API_URL}/api/expenses/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchExpenses();
