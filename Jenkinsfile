@@ -137,16 +137,61 @@ pipeline {
                                 fi
                                 chmod 600 "$SSH_KEY"
                                 
-                                # First, wait for EC2 instance status checks to pass
+                                # Check instance status and handle impaired state
                                 echo ""
-                                echo "Waiting for EC2 instance status checks..."
-                                for i in {1..30}; do
+                                echo "Checking EC2 instance health status..."
+                                STATUS=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID --query 'InstanceStatuses[0].InstanceStatus.Status' --output text 2>/dev/null || echo "unknown")
+                                SYS_STATUS=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID --query 'InstanceStatuses[0].SystemStatus.Status' --output text 2>/dev/null || echo "unknown")
+                                echo "  Instance Status: $STATUS, System Status: $SYS_STATUS"
+                                
+                                # If instance is impaired, stop and start it
+                                if [ "$STATUS" = "impaired" ] || [ "$SYS_STATUS" = "impaired" ]; then
+                                    echo ""
+                                    echo "⚠️  Instance is IMPAIRED! Performing stop/start cycle to recover..."
+                                    echo "Stopping instance $INSTANCE_ID..."
+                                    aws ec2 stop-instances --instance-ids $INSTANCE_ID
+                                    
+                                    echo "Waiting for instance to stop..."
+                                    aws ec2 wait instance-stopped --instance-ids $INSTANCE_ID
+                                    echo "✅ Instance stopped."
+                                    
+                                    echo "Starting instance $INSTANCE_ID..."
+                                    aws ec2 start-instances --instance-ids $INSTANCE_ID
+                                    
+                                    echo "Waiting for instance to be running..."
+                                    aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+                                    echo "✅ Instance is running again."
+                                    
+                                    # Get the new public IP (may change after stop/start without Elastic IP)
+                                    sleep 10
+                                    NEW_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+                                    echo "  New Public IP: $NEW_IP"
+                                    
+                                    # Update INSTANCE_IP if it changed
+                                    if [ -n "$NEW_IP" ] && [ "$NEW_IP" != "None" ]; then
+                                        INSTANCE_IP=$NEW_IP
+                                        # Update Ansible inventory with new IP
+                                        echo "[ec2_instances]" > ../ansible/inventory
+                                        echo "${INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=./ssh_key.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> ../ansible/inventory
+                                        echo "Updated Ansible inventory with new IP: $INSTANCE_IP"
+                                    fi
+                                fi
+                                
+                                # Wait for instance status checks to pass
+                                echo ""
+                                echo "Waiting for EC2 instance status checks to pass..."
+                                for i in {1..60}; do
                                     STATUS=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID --query 'InstanceStatuses[0].InstanceStatus.Status' --output text 2>/dev/null || echo "unknown")
                                     SYS_STATUS=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID --query 'InstanceStatuses[0].SystemStatus.Status' --output text 2>/dev/null || echo "unknown")
-                                    echo "  Instance Status: $STATUS, System Status: $SYS_STATUS"
+                                    echo "  [$i/60] Instance Status: $STATUS, System Status: $SYS_STATUS"
                                     if [ "$STATUS" = "ok" ] && [ "$SYS_STATUS" = "ok" ]; then
                                         echo "✅ Instance status checks passed!"
                                         break
+                                    fi
+                                    if [ "$STATUS" = "impaired" ] || [ "$SYS_STATUS" = "impaired" ]; then
+                                        echo "❌ Instance is still impaired after recovery attempt"
+                                        echo "Please check AWS Console for details or terminate and recreate the instance"
+                                        exit 1
                                     fi
                                     sleep 5
                                 done
