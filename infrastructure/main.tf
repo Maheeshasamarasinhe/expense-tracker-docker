@@ -166,11 +166,47 @@ resource "aws_instance" "app_server" {
     volume_type = "gp3"
   }
 
-  user_data = <<-EOF
+  user_data = base64encode(<<-EOF
               #!/bin/bash
-              sudo apt-get update
-              sudo apt-get install -y python3 python3-pip
+              set -e
+              
+              # Log all output
+              exec > >(tee /var/log/user-data.log)
+              exec 2>&1
+              
+              echo "=== Starting user-data script ==="
+              
+              # Update system
+              apt-get update
+              apt-get install -y python3 python3-pip curl wget
+              
+              # Wait for cloud-init to complete
+              echo "Waiting for cloud-init to complete..."
+              cloud-init status --wait
+              
+              # Ensure SSH is running and ready
+              echo "Ensuring SSH service is running..."
+              systemctl start ssh || systemctl start openssh-server
+              systemctl enable ssh || systemctl enable openssh-server
+              
+              # Wait for SSH to be ready
+              echo "Waiting for SSH to be ready..."
+              for i in {1..30}; do
+                  if netstat -tlnp 2>/dev/null | grep -q ':22 ' || ss -tlnp 2>/dev/null | grep -q ':22 '; then
+                      echo "SSH is ready on port 22"
+                      break
+                  fi
+                  echo "SSH not ready yet, attempt $i/30..."
+                  sleep 2
+              done
+              
+              # Create completion marker
+              echo "User data script completed successfully" > /var/lib/user-data-complete
+              echo "=== user-data script completed ==="
               EOF
+  )
+  
+  user_data_replace_on_change = true
 
   tags = {
     Name        = "expense-tracker-server"
