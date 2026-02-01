@@ -128,7 +128,43 @@ pipeline {
                                 
                                 # Check instance state in AWS
                                 echo "Checking EC2 instance state..."
+                                INSTANCE_STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].State.Name' --output text 2>/dev/null)
+                                echo "  Current instance state: $INSTANCE_STATE"
                                 aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].[State.Name,PublicIpAddress,VpcId,SubnetId]' --output table || echo "Could not query AWS"
+                                
+                                # Handle instance in stopping state - wait for it to finish stopping
+                                if [ "$INSTANCE_STATE" = "stopping" ]; then
+                                    echo ""
+                                    echo "⏳ Instance is currently stopping. Waiting for it to fully stop..."
+                                    aws ec2 wait instance-stopped --instance-ids $INSTANCE_ID
+                                    echo "✅ Instance has stopped."
+                                    INSTANCE_STATE="stopped"
+                                fi
+                                
+                                # Handle instance in stopped state - start it
+                                if [ "$INSTANCE_STATE" = "stopped" ]; then
+                                    echo ""
+                                    echo "🚀 Instance is stopped. Starting instance $INSTANCE_ID..."
+                                    aws ec2 start-instances --instance-ids $INSTANCE_ID
+                                    
+                                    echo "Waiting for instance to be running..."
+                                    aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+                                    echo "✅ Instance is now running."
+                                    
+                                    # Get the updated public IP
+                                    sleep 10
+                                    NEW_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+                                    echo "  Public IP: $NEW_IP"
+                                    
+                                    # Update INSTANCE_IP if it changed
+                                    if [ -n "$NEW_IP" ] && [ "$NEW_IP" != "None" ]; then
+                                        INSTANCE_IP=$NEW_IP
+                                        # Update Ansible inventory with new IP
+                                        echo "[ec2_instances]" > ../ansible/inventory
+                                        echo "${INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=./ssh_key.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> ../ansible/inventory
+                                        echo "Updated Ansible inventory with IP: $INSTANCE_IP"
+                                    fi
+                                fi
                                 
                                 # Check if SSH key exists and has correct permissions
                                 if [ ! -f "$SSH_KEY" ]; then
