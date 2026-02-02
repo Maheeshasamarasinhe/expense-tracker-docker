@@ -68,6 +68,20 @@ pipeline {
                                 
                                 echo "Initializing Terraform..."
                                 terraform init
+                                
+                                # TEMPORARY: Force recreate EC2 to apply new user_data that fixes SSH
+                                # Remove this block after first successful deployment
+                                echo "⚠️  Forcing EC2 instance recreation to apply SSH fix..."
+                                terraform taint aws_instance.app_server || echo "Instance not in state, continuing..."
+                                
+                                # Check if we need to force recreate the EC2 instance
+                                # This file is created when SSH fails repeatedly
+                                if [ -f "../.force_recreate_ec2" ]; then
+                                    echo "⚠️  Force recreate flag detected. Tainting EC2 instance..."
+                                    terraform taint aws_instance.app_server || echo "Instance not yet in state, skipping taint"
+                                    rm -f "../.force_recreate_ec2"
+                                fi
+                                
                                 terraform plan -out=tfplan
                                 terraform apply -auto-approve tfplan
                                 
@@ -241,19 +255,34 @@ pipeline {
                                 
                                 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
                                     echo "----------------------------------------"
-                                    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Testing SSH connection to $INSTANCE_IP..."
+                                    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Testing connection to $INSTANCE_IP..."
                                     
-                                    # Try SSH connection with verbose error output
-                                    if timeout 15 ssh -i "$SSH_KEY" \
+                                    # First check if port 22 is open using nc (faster than SSH)
+                                    echo "  Checking if port 22 is open..."
+                                    if ! timeout 5 bash -c "echo >/dev/tcp/$INSTANCE_IP/22" 2>/dev/null; then
+                                        echo "  ⏳ Port 22 not yet open, waiting ${WAIT_INTERVAL}s..."
+                                        sleep $WAIT_INTERVAL
+                                        ATTEMPT=$((ATTEMPT + 1))
+                                        continue
+                                    fi
+                                    echo "  ✅ Port 22 is open!"
+                                    
+                                    # Port is open, now try SSH connection with longer timeout
+                                    echo "  Testing SSH authentication..."
+                                    if timeout 30 ssh -i "$SSH_KEY" \
                                         -o StrictHostKeyChecking=no \
                                         -o UserKnownHostsFile=/dev/null \
-                                        -o ConnectTimeout=5 \
+                                        -o ConnectTimeout=10 \
+                                        -o ServerAliveInterval=5 \
+                                        -o ServerAliveCountMax=3 \
                                         -o BatchMode=yes \
                                         -o PreferredAuthentications=publickey \
                                         ubuntu@$INSTANCE_IP "echo 'SSH connection successful'" 2>&1; then
                                         echo "✅ EC2 instance is ready and accessible!"
                                         exit 0
                                     fi
+                                    
+                                    echo "  SSH connection failed, SSH daemon may still be starting..."
                                     
                                     # Check if instance is still running
                                     INSTANCE_STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].State.Name' --output text 2>/dev/null)
@@ -264,6 +293,15 @@ pipeline {
                                         exit 1
                                     fi
                                     
+                                    # After 20 attempts (200s), try rebooting the instance to fix SSH
+                                    if [ $ATTEMPT -eq 20 ]; then
+                                        echo ""
+                                        echo "⚠️  SSH still not accessible after 20 attempts. Rebooting instance to recover..."
+                                        aws ec2 reboot-instances --instance-ids $INSTANCE_ID
+                                        echo "Waiting 60 seconds for instance to reboot..."
+                                        sleep 60
+                                    fi
+                                    
                                     echo "⏳ Not ready yet, waiting ${WAIT_INTERVAL}s before retry..."
                                     sleep $WAIT_INTERVAL
                                     ATTEMPT=$((ATTEMPT + 1))
@@ -272,6 +310,11 @@ pipeline {
                                 echo "❌ EC2 instance did not become accessible after $MAX_ATTEMPTS attempts (${MAX_ATTEMPTS}*${WAIT_INTERVAL}s = $((MAX_ATTEMPTS*WAIT_INTERVAL))s total)"
                                 echo "Collecting debug information..."
                                 aws ec2 describe-instance-status --instance-ids $INSTANCE_ID --query 'InstanceStatuses[0]' || echo "Could not get instance status"
+                                
+                                # Create flag to force EC2 recreation on next build
+                                echo "Creating flag to force EC2 recreation on next build..."
+                                touch ../.force_recreate_ec2
+                                
                                 exit 1
                             '''
                         }
