@@ -69,11 +69,6 @@ pipeline {
                                 echo "Initializing Terraform..."
                                 terraform init
                                 
-                                # TEMPORARY: Force recreate EC2 to apply new user_data that fixes SSH
-                                # Remove this block after first successful deployment
-                                echo "⚠️  Forcing EC2 instance recreation to apply SSH fix..."
-                                terraform taint aws_instance.app_server || echo "Instance not in state, continuing..."
-                                
                                 # Check if we need to force recreate the EC2 instance
                                 # This file is created when SSH fails repeatedly
                                 if [ -f "../.force_recreate_ec2" ]; then
