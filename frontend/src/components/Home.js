@@ -64,7 +64,7 @@ const Home = ({ setAuth }) => {
   return (
     <div className="home-container">
       <div className="header">
-        <h1>Welcome, {user.name}!</h1>
+        <h1>Welcome Mihiran, {user.name}!</h1>
         <button onClick={logout} className="btn" style={{width: 'auto'}}>Logout</button>
       </div>
 
