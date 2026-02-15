@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(name: 'FORCE_RECREATE_EC2', defaultValue: false, description: 'Force recreation of EC2 instance (use when SSH is broken)')
+    }
+
     environment {
         DOCKER_HUB_USER = 'maheeshamihiran' 
         IMAGE_TAG = "${BUILD_NUMBER}" 
@@ -70,11 +74,19 @@ pipeline {
                                 terraform init
                                 
                                 # Check if we need to force recreate the EC2 instance
-                                # This file is created when SSH fails repeatedly
+                                # This can be triggered by:
+                                # 1. Build parameter FORCE_RECREATE_EC2=true
+                                # 2. Flag file from previous failed build
+                                FORCE_RECREATE="${FORCE_RECREATE_EC2:-false}"
                                 if [ -f "../.force_recreate_ec2" ]; then
-                                    echo "⚠️  Force recreate flag detected. Tainting EC2 instance..."
-                                    terraform taint aws_instance.app_server || echo "Instance not yet in state, skipping taint"
+                                    FORCE_RECREATE="true"
                                     rm -f "../.force_recreate_ec2"
+                                fi
+                                
+                                if [ "$FORCE_RECREATE" = "true" ]; then
+                                    echo "⚠️  Force recreate EC2 requested. Tainting EC2 instance..."
+                                    terraform taint aws_instance.app_server || echo "Instance not in state, will be created fresh"
+                                    terraform taint aws_eip.app_server || echo "EIP not in state, will be created fresh"
                                 fi
                                 
                                 terraform plan -out=tfplan

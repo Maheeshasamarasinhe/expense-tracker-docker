@@ -169,7 +169,22 @@ resource "aws_instance" "app_server" {
   user_data = base64encode(<<-EOF
               #!/bin/bash
               
-              # Ensure SSH is immediately available - run this FIRST before anything else
+              # === PRIORITY 1: Ensure SSH is immediately available ===
+              # Configure SSH daemon for reliability before anything else
+              systemctl stop ssh 2>/dev/null || systemctl stop openssh-server 2>/dev/null || true
+              
+              # Configure SSH daemon settings for better stability
+              cat > /etc/ssh/sshd_config.d/99-stable.conf << 'SSHCONF'
+# Stability settings
+MaxStartups 10:30:60
+ClientAliveInterval 30
+ClientAliveCountMax 10
+LoginGraceTime 120
+TCPKeepAlive yes
+UseDNS no
+SSHCONF
+              
+              # Start SSH with new configuration
               systemctl start ssh 2>/dev/null || systemctl start openssh-server 2>/dev/null || true
               systemctl enable ssh 2>/dev/null || systemctl enable openssh-server 2>/dev/null || true
               
@@ -177,6 +192,10 @@ resource "aws_instance" "app_server" {
               exec > >(tee /var/log/user-data.log) 2>&1
               
               echo "=== Starting user-data script ==="
+              echo "SSH daemon configured and started"
+              
+              # Wait for cloud-init to complete if running
+              cloud-init status --wait || true
               
               # Update system (non-blocking for SSH)
               apt-get update -y
