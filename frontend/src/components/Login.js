@@ -24,7 +24,7 @@ const Login = ({ setAuth }) => {
   return (
     <div className="auth-container">
       <form className="auth-form" onSubmit={handleSubmit}>
-        <h2>Login</h2>
+        <h2>Mihiran</h2>
         <div className="form-group">
           <label>Email</label>
           <input
