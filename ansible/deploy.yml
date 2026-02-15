@@ -58,4 +58,4 @@
 
     - name: Clean up unused Docker images
       command: docker image prune -f
-      become_user: ubuntu
+      ignore_errors: yes
