@@ -202,8 +202,8 @@ resource "aws_instance" "app_server" {
     aws_key_pair.generated
   ]
   
-  # Remove ignore_changes for user_data to allow updates
-  # If SSH issues persist, manually run: terraform taint aws_instance.app_server
+  
+  
 }
 
 # Elastic IP
@@ -218,7 +218,7 @@ resource "aws_eip" "app_server" {
   }
 }
 
-# Auto-generate Ansible Inventory File with key path
+
 resource "null_resource" "generate_inventory" {
   depends_on = [aws_eip.app_server, local_file.private_key]
 

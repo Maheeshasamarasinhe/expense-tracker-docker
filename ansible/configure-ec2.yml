@@ -10,10 +10,23 @@
       wait_for_connection:
         timeout: 300
 
+    - name: Wait for cloud-init to complete
+      command: cloud-init status --wait
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Pause for SSH connection stability
+      pause:
+        seconds: 10
+
     - name: Update apt cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
+      retries: 3
+      delay: 10
+      register: apt_update
+      until: apt_update is success
 
     - name: Install required packages
       apt:

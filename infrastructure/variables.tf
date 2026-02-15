@@ -1,4 +1,4 @@
-# Input Variables for Terraform Configuration
+
 
 variable "aws_region" {
   description = "AWS region to deploy resources"
@@ -9,7 +9,7 @@ variable "aws_region" {
 variable "ami_id" {
   description = "AMI ID for EC2 instance (Ubuntu 22.04 LTS recommended)"
   type        = string
-  default     = "ami-0c7217cdde317cfec" # Ubuntu 22.04 LTS in us-east-1
+  default     = "ami-0c7217cdde317cfec" 
 }
 
 variable "instance_type" {
